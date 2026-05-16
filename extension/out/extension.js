@@ -65,6 +65,22 @@ function activate(context) {
     }), store.onDidChange(() => {
         decorationManager.refreshAll();
     }));
+    // --- Auto-remove marks when their code is deleted or edited ---
+    context.subscriptions.push(vscode.workspace.onDidChangeTextDocument(event => {
+        const filePath = event.document.uri.fsPath;
+        let affected = false;
+        for (const change of event.contentChanges) {
+            if (store.adjustMarksForChange(filePath, change)) {
+                affected = true;
+            }
+        }
+        if (affected) {
+            const editor = vscode.window.activeTextEditor;
+            if (editor && editor.document.uri.fsPath === filePath) {
+                decorationManager.refreshEditor(editor);
+            }
+        }
+    }));
     // Initial decoration pass
     decorationManager.refreshAll();
     vscode.window.showInformationMessage('🧠 Code Understanding Tracker active');
@@ -81,7 +97,7 @@ function markSelection(level) {
     const funcContext = detectFunctionContext(editor.document, selection);
     store.addMark(editor.document.uri.fsPath, selection, level, text, funcContext);
     decorationManager.refreshEditor(editor);
-    const label = level === 'understood' ? '✅ Understood' : '🟡 Partially understood';
+    const label = level === 'understood' ? '🟢 Understood' : '🟡 Partially understood';
     const scope = funcContext ? ` (${funcContext})` : '';
     vscode.window.showInformationMessage(`${label}${scope}`);
 }
@@ -125,7 +141,7 @@ function showStats() {
         ? Math.round((stats.understood / stats.total) * 100)
         : 0;
     vscode.window.showInformationMessage(`🧠 ${stats.total} sections marked across ${stats.files} files | ` +
-        `✅ ${stats.understood} understood (${pct}%) | 🟡 ${stats.partial} partial`);
+        `🟢 ${stats.understood} understood (${pct}%) | 🟡 ${stats.partial} partial`);
 }
 function clearFile() {
     const editor = vscode.window.activeTextEditor;

@@ -39,17 +39,25 @@ class DecorationManager {
     store;
     understoodDecoration;
     partialDecoration;
+    understoodIconDecoration;
+    partialIconDecoration;
     constructor(store) {
         this.store = store;
         this.understoodDecoration = this.createDecorationType('understood');
         this.partialDecoration = this.createDecorationType('partial');
+        this.understoodIconDecoration = this.createIconDecorationType('understood');
+        this.partialIconDecoration = this.createIconDecorationType('partial');
         // Re-apply when config changes
         vscode.workspace.onDidChangeConfiguration(e => {
             if (e.affectsConfiguration('codeTracker')) {
                 this.understoodDecoration.dispose();
                 this.partialDecoration.dispose();
+                this.understoodIconDecoration.dispose();
+                this.partialIconDecoration.dispose();
                 this.understoodDecoration = this.createDecorationType('understood');
                 this.partialDecoration = this.createDecorationType('partial');
+                this.understoodIconDecoration = this.createIconDecorationType('understood');
+                this.partialIconDecoration = this.createIconDecorationType('partial');
                 this.refreshAll();
             }
         });
@@ -70,8 +78,12 @@ class DecorationManager {
             isWholeLine: false,
             overviewRulerColor: borderColor,
             overviewRulerLane: vscode.OverviewRulerLane.Left,
+        });
+    }
+    createIconDecorationType(level) {
+        return vscode.window.createTextEditorDecorationType({
             after: {
-                contentText: level === 'understood' ? ' ✅' : ' 🟡',
+                contentText: level === 'understood' ? ' 🟢' : ' 🟡',
                 margin: '0 0 0 8px',
                 color: 'rgba(150,150,150,0.5)',
             },
@@ -80,21 +92,36 @@ class DecorationManager {
     refreshEditor(editor) {
         const filePath = editor.document.uri.fsPath;
         const marks = this.store.getMarksForFile(filePath);
-        const understoodRanges = [];
-        const partialRanges = [];
+        const understoodBgRanges = [];
+        const partialBgRanges = [];
+        const understoodIconRanges = [];
+        const partialIconRanges = [];
         for (const mark of marks) {
             const range = new vscode.Range(mark.startLine, mark.startChar, mark.endLine, mark.endChar);
             const hoverMessage = this.buildHover(mark);
-            const option = { range, hoverMessage };
+            const bgOption = { range, hoverMessage };
+            // Place icon at end of last content line (not on a new line when selection ends at char 0)
+            let iconLine = mark.endLine;
+            let iconChar = mark.endChar;
+            if (iconChar === 0 && iconLine > mark.startLine) {
+                iconLine--;
+                iconChar = editor.document.lineAt(iconLine).text.length;
+            }
+            const iconRange = new vscode.Range(iconLine, iconChar, iconLine, iconChar);
+            const iconOption = { range: iconRange, hoverMessage };
             if (mark.level === 'understood') {
-                understoodRanges.push(option);
+                understoodBgRanges.push(bgOption);
+                understoodIconRanges.push(iconOption);
             }
             else {
-                partialRanges.push(option);
+                partialBgRanges.push(bgOption);
+                partialIconRanges.push(iconOption);
             }
         }
-        editor.setDecorations(this.understoodDecoration, understoodRanges);
-        editor.setDecorations(this.partialDecoration, partialRanges);
+        editor.setDecorations(this.understoodDecoration, understoodBgRanges);
+        editor.setDecorations(this.partialDecoration, partialBgRanges);
+        editor.setDecorations(this.understoodIconDecoration, understoodIconRanges);
+        editor.setDecorations(this.partialIconDecoration, partialIconRanges);
     }
     refreshAll() {
         for (const editor of vscode.window.visibleTextEditors) {
@@ -104,7 +131,7 @@ class DecorationManager {
     buildHover(mark) {
         const md = new vscode.MarkdownString();
         md.isTrusted = true;
-        const icon = mark.level === 'understood' ? '✅' : '🟡';
+        const icon = mark.level === 'understood' ? '🟢' : '🟡';
         const label = mark.level === 'understood' ? 'Understood' : 'Partially Understood';
         md.appendMarkdown(`**${icon} ${label}**\n\n`);
         if (mark.functionContext) {
@@ -120,6 +147,8 @@ class DecorationManager {
     dispose() {
         this.understoodDecoration.dispose();
         this.partialDecoration.dispose();
+        this.understoodIconDecoration.dispose();
+        this.partialIconDecoration.dispose();
     }
 }
 exports.DecorationManager = DecorationManager;

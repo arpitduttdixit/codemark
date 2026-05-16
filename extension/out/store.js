@@ -116,6 +116,34 @@ class Store {
             this.save();
         }
     }
+    adjustMarksForChange(filePath, change) {
+        const relPath = this.getRelativePath(filePath);
+        const linesDeleted = change.range.end.line - change.range.start.line;
+        const linesAdded = (change.text.match(/\n/g) || []).length;
+        const lineDelta = linesAdded - linesDeleted;
+        let changed = false;
+        const idsToRemove = new Set();
+        for (const m of this.data.marks) {
+            if (m.filePath !== relPath)
+                continue;
+            if (this.rangesOverlap(m, change.range)) {
+                idsToRemove.add(m.id);
+                changed = true;
+            }
+            else if (m.startLine > change.range.end.line && lineDelta !== 0) {
+                m.startLine += lineDelta;
+                m.endLine += lineDelta;
+                changed = true;
+            }
+        }
+        if (idsToRemove.size > 0) {
+            this.data.marks = this.data.marks.filter(m => !idsToRemove.has(m.id));
+        }
+        if (changed) {
+            this.save();
+        }
+        return changed;
+    }
     addNoteToMark(filePath, range, note) {
         const relPath = this.getRelativePath(filePath);
         for (const m of this.data.marks) {
@@ -167,7 +195,7 @@ class Store {
             const label = dir === '.' ? fileName : `${dir}/${fileName}`;
             lines.push(`    ${label}`);
             for (const m of marks) {
-                const icon = m.level === 'understood' ? '✅' : '🟡';
+                const icon = m.level === 'understood' ? '🟢' : '🟡';
                 const text = m.functionContext || m.preview;
                 const safeText = text.replace(/[()[\]{}]/g, ' ').trim();
                 lines.push(`      ${icon} ${safeText}`);

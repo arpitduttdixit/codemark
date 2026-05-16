@@ -47,7 +47,7 @@ class FileItem extends vscode.TreeItem {
         this.workspaceRoot = workspaceRoot;
         const understood = marks.filter(m => m.level === 'understood').length;
         const partial = marks.filter(m => m.level === 'partial').length;
-        this.description = `✅ ${understood}  🟡 ${partial}`;
+        this.description = `🟢 ${understood}  🟡 ${partial}`;
         this.iconPath = new vscode.ThemeIcon('file-code');
         this.tooltip = path.join(workspaceRoot, filePath);
     }
@@ -60,7 +60,7 @@ class MarkItem extends vscode.TreeItem {
         super(mark.functionContext || mark.preview, vscode.TreeItemCollapsibleState.None);
         this.mark = mark;
         this.workspaceRoot = workspaceRoot;
-        const icon = mark.level === 'understood' ? '✅' : '🟡';
+        const icon = mark.level === 'understood' ? '🟢' : '🟡';
         this.description = `L${mark.startLine + 1}-${mark.endLine + 1} ${icon}`;
         this.tooltip = mark.note || mark.preview;
         this.iconPath = new vscode.ThemeIcon(mark.level === 'understood' ? 'pass' : 'warning');
@@ -184,7 +184,7 @@ class StatsViewProvider {
         <div class="big-number">${stats.total}</div>
         <div class="label">sections marked across ${stats.files} file${stats.files !== 1 ? 's' : ''}</div>
         <div class="bar-bg"><div class="bar-fill bar-understood"></div></div>
-        <div class="stat-row"><span>✅ Understood</span><span>${stats.understood}</span></div>
+        <div class="stat-row"><span>🟢 Understood</span><span>${stats.understood}</span></div>
         <div class="stat-row"><span>🟡 Partial</span><span>${stats.partial}</span></div>
       </body>
       </html>
